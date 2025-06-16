@@ -1,9 +1,10 @@
+// File: client/src/components/AudioCallRecorder.js
 import React, { useEffect, useRef, useState } from "react";
 import io from "socket.io-client";
 import Peer from "simple-peer";
 import "./AudioCallRecorder.css";
 
-const socket = io("http://localhost:5000"); // or your ngrok URL
+const socket = io("https://f227-2409-40d2-114e-ed08-b090-7954-96d0-6a9.ngrok-free.app"); // or your ngrok URL
 
 const AudioCallRecorder = () => {
   const myVideo = useRef();
@@ -45,11 +46,13 @@ const AudioCallRecorder = () => {
       }
 
       socket.on("user-joined", ({ from }) => {
-        setupPeer(true, from, stream);
+        console.log("👋 A user was already in the room. You are the initiator.");
+        setupPeer(true, from, mediaStream.current);
       });
 
       socket.on("initiate-call", ({ from }) => {
-        setupPeer(false, from, stream);
+        console.log("📞 Another user is joining. You are the receiver.");
+        setupPeer(false, from, mediaStream.current);
       });
     }).catch((err) => {
       alert("Error accessing webcam/mic: " + err.message);
@@ -58,19 +61,25 @@ const AudioCallRecorder = () => {
   };
 
   const setupPeer = (initiator, targetId, stream) => {
+    console.log(`🔗 Setting up peer connection. Initiator: ${initiator}, Target: ${targetId}`);
     const peer = new Peer({ initiator, trickle: false, stream });
 
     peer.on("signal", (data) => {
+      console.log("📤 Sending signal", data);
       socket.emit("signal", { to: targetId, from: socket.id, signal: data });
     });
 
     peer.on("stream", (remoteStream) => {
+      console.log("📺 Received remote stream", remoteStream);
       if (userVideo.current) {
         userVideo.current.srcObject = remoteStream;
         userVideo.current.setAttribute("playsinline", true);
         userVideo.current.play().catch((e) => console.warn("Remote video play failed:", e));
       }
     });
+
+    peer.on("connect", () => console.log("🟢 Peer connected"));
+
 
     connectionRef.current = peer;
   };
